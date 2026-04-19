@@ -61,12 +61,11 @@ func fileHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodOptions {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Range")
-		w.Header().Set("Access-Control-Expose-Headers", "Content-Length, Content-Range")
+		w.Header().Set("Access-Control-Allow-Headers", "Range, range")
+		w.Header().Set("Access-Control-Expose-Headers", "Content-Length, Content-Range, Content-Type")
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-
 	var filePath string
 
 	if r.URL.RawQuery != "" {
