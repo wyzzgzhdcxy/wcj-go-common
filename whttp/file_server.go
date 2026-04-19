@@ -57,6 +57,16 @@ func Start(port string) (addr string, err error) {
 }
 
 func fileHandler(w http.ResponseWriter, r *http.Request) {
+	// ✅ 1. 处理 CORS 预检请求（最关键）
+	if r.Method == http.MethodOptions {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Range")
+		w.Header().Set("Access-Control-Expose-Headers", "Content-Length, Content-Range")
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
 	var filePath string
 
 	if r.URL.RawQuery != "" {
