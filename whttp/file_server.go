@@ -103,6 +103,8 @@ func fileHandler(w http.ResponseWriter, r *http.Request) {
 		contentType = "application/octet-stream"
 	}
 	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Expose-Headers", "Content-Length, Content-Type, Content-Range")
 	http.ServeFile(w, r, cleanPath)
 }
 
