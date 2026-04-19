@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"wcj-go-common/core"
+	"github.com/wyzzgzhdcxy/wcj-go-common/core"
 )
 
 // InitLog 初始化日志 all -true 包含文件和控制台  false-仅仅控制台

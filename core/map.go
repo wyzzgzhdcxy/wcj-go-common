@@ -3,7 +3,7 @@ package core
 import (
 	"fmt"
 	"hash/fnv"
-	"wcj-go-common/model"
+	"github.com/wyzzgzhdcxy/wcj-go-common/model"
 )
 
 func MapExistKey[T any](dstFilesMap *map[string]T, key string) bool {

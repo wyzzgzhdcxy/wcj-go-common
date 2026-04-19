@@ -8,7 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"wcj-go-common/core"
+	"github.com/wyzzgzhdcxy/wcj-go-common/core"
 )
 
 func ReadBody(r *http.Request) string {

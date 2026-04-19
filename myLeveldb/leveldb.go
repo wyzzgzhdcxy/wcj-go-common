@@ -3,7 +3,7 @@ package myLeveldb
 import (
 	"fmt"
 	"strings"
-	"wcj-go-common/core"
+	"github.com/wyzzgzhdcxy/wcj-go-common/core"
 
 	"github.com/syndtr/goleveldb/leveldb"
 	levelDbUtil "github.com/syndtr/goleveldb/leveldb/util"

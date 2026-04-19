@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"wcj-go-common/core"
+	"github.com/wyzzgzhdcxy/wcj-go-common/core"
 )
 
 func UploadFile2TencentCloud(filename string) error {
