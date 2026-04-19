@@ -186,10 +186,21 @@ func audioHandler(w http.ResponseWriter, r *http.Request) {
 	fileSize := fileStat.Size()
 	contentType := audioContentType(ext)
 
+	// ETag 和缓存头
+	etag := fmt.Sprintf(`"%x"`, fileStat.ModTime().UnixNano())
+	w.Header().Set("ETag", etag)
+	w.Header().Set("Cache-Control", "private, max-age=3600")
+
+	// 检查 If-None-Match，返回 304
+	if cachedETag := r.Header.Get("If-None-Match"); cachedETag != "" && cachedETag == etag {
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
+
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Accept-Ranges", "bytes")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Expose-Headers", "Content-Length, Content-Type, Content-Range")
+	w.Header().Set("Access-Control-Expose-Headers", "Content-Length, Content-Type, Content-Range, ETag")
 
 	rangeHeader := r.Header.Get("Range")
 	if rangeHeader == "" {
