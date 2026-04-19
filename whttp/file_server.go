@@ -2,14 +2,20 @@ package whttp
 
 import (
 	"fmt"
+	"io"
 	"mime"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
+
+// OnActivate 是单例激活回调，由调用方注册。
+// 当 HTTP 服务收到激活请求时会被调用。
+var OnActivate func()
 
 var allowedExts = map[string]bool{
 	".jpg": true, ".jpeg": true, ".png": true, ".gif": true, ".bmp": true,
@@ -37,8 +43,10 @@ func Start(port string) (addr string, err error) {
 	}
 
 	http.HandleFunc("/file", fileHandler)
+	http.HandleFunc("/audio", audioHandler)
+	http.HandleFunc("/activate", activateHandler)
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("文件服务器\n用法: /file?path=文件完整路径\n例: /file?path=E:/images/photo.jpg"))
+		w.Write([]byte("文件服务器\n用法:\n  /file?path=文件完整路径   (通用文件，支持图片/音频/视频)\n  /audio?path=音频路径     (音频流，支持拖动/进度)\n  /activate               (单例激活信号)\n例: /file?path=E:/images/photo.jpg"))
 	})
 
 	go func() {
@@ -96,4 +104,124 @@ func fileHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", contentType)
 	http.ServeFile(w, r, cleanPath)
+}
+
+var audioExts = map[string]bool{
+	".mp3": true, ".wav": true, ".flac": true, ".ogg": true, ".aac": true,
+	".m4a": true, ".wma": true, ".ape": true, ".opus": true, ".alac": true,
+	".aiff": true, ".aif": true, ".mid": true, ".midi": true, ".oga": true,
+	".spx": true, ".amr": true, ".mmf": true,
+}
+
+func activateHandler(w http.ResponseWriter, r *http.Request) {
+	if OnActivate != nil {
+		OnActivate()
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("OK"))
+}
+
+func audioContentType(ext string) string {
+	switch ext {
+	case ".wav":
+		return "audio/wav"
+	case ".flac":
+		return "audio/flac"
+	case ".m4a":
+		return "audio/mp4"
+	case ".ogg":
+		return "audio/ogg"
+	case ".aac":
+		return "audio/aac"
+	case ".mp3":
+		return "audio/mpeg"
+	}
+	return "audio/mpeg"
+}
+
+func audioHandler(w http.ResponseWriter, r *http.Request) {
+	filePath := r.URL.Query().Get("path")
+	if filePath == "" {
+		http.Error(w, "请提供 path 参数\n例: /audio?path=E:/music/song.mp3", http.StatusBadRequest)
+		return
+	}
+
+	filePath = strings.ReplaceAll(filePath, "\\", "/")
+	cleanPath := filepath.Clean(filePath)
+
+	if strings.Contains(cleanPath, "..") {
+		http.Error(w, "非法路径", http.StatusForbidden)
+		return
+	}
+
+	info, err := os.Stat(cleanPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			http.Error(w, "文件不存在: "+cleanPath, http.StatusNotFound)
+		} else {
+			http.Error(w, "无法访问: "+err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+
+	if info.IsDir() {
+		http.Error(w, "暂不支持目录访问", http.StatusForbidden)
+		return
+	}
+
+	ext := strings.ToLower(filepath.Ext(cleanPath))
+	if !audioExts[ext] {
+		http.Error(w, "不支持的音频格式", http.StatusForbidden)
+		return
+	}
+
+	file, err := os.Open(cleanPath)
+	if err != nil {
+		http.Error(w, "无法打开文件: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer file.Close()
+
+	fileStat, _ := file.Stat()
+	fileSize := fileStat.Size()
+	contentType := audioContentType(ext)
+
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Accept-Ranges", "bytes")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Expose-Headers", "Content-Length, Content-Type, Content-Range")
+
+	rangeHeader := r.Header.Get("Range")
+	if rangeHeader == "" {
+		w.Header().Set("Content-Length", strconv.FormatInt(fileSize, 10))
+		io.Copy(w, file)
+		return
+	}
+
+	// 解析 Range 头，格式: bytes=start-end
+	rangePart := strings.TrimPrefix(rangeHeader, "bytes=")
+	parts := strings.Split(rangePart, "-")
+	if len(parts) != 2 {
+		http.Error(w, "无效的 Range 头", http.StatusRequestedRangeNotSatisfiable)
+		return
+	}
+
+	start, _ := strconv.ParseInt(parts[0], 10, 64)
+	end := fileSize - 1
+	if parts[1] != "" {
+		end, _ = strconv.ParseInt(parts[1], 10, 64)
+	}
+
+	if start > end || start >= fileSize {
+		http.Error(w, "Range 不满足", http.StatusRequestedRangeNotSatisfiable)
+		return
+	}
+
+	contentLength := end - start + 1
+	w.Header().Set("Content-Length", strconv.FormatInt(contentLength, 10))
+	w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, fileSize))
+	w.WriteHeader(http.StatusPartialContent)
+
+	file.Seek(start, 0)
+	io.CopyN(w, file, contentLength)
 }
