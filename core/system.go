@@ -16,9 +16,41 @@ func IsWin() bool {
 	return runtime.GOOS == "windows"
 }
 
+// GetTempDir 获取临时目录
 func GetTempDir() string {
 	dir, _ := os.UserCacheDir()
 	return dir + "/wtools"
+}
+
+// GetAppDataDir 返回当前用户的"应用配置/用户数据"目录（Roaming，可随用户漫游）。
+//
+//	Windows:  %APPDATA%/<appName>                 (即 C:\Users\xxx\AppData\Roaming\<appName>)
+//	macOS:    ~/Library/Application Support/<appName>
+//	Linux:    $XDG_CONFIG_HOME/<appName> 或 ~/.config/<appName>
+//
+// 当系统无法给出标准目录时回退到临时目录，保证调用方拿到非空字符串。
+// 适合放数据库、用户配置等"应跟随用户跨机器漫游"的数据。
+func GetAppDataDir(appName string) string {
+	dir, err := os.UserConfigDir()
+	if err != nil || dir == "" {
+		dir = os.TempDir()
+	}
+	return filepath.Join(dir, appName)
+}
+
+// GetAppCacheDir 返回当前用户的"应用缓存/日志"目录（Local，不可漫游）。
+//
+//	Windows:  %LOCALAPPDATA%/<appName>            (即 C:\Users\xxx\AppData\Local\<appName>)
+//	macOS:    ~/Library/Caches/<appName>
+//	Linux:    $XDG_CACHE_HOME/<appName> 或 ~/.cache/<appName>
+//
+// 适合放日志、临时缓存、锁文件等"本地、不漫游、可清理"的数据。
+func GetAppCacheDir(appName string) string {
+	dir, err := os.UserCacheDir()
+	if err != nil || dir == "" {
+		dir = os.TempDir()
+	}
+	return filepath.Join(dir, appName)
 }
 
 func GetUserHomeDir() string {
