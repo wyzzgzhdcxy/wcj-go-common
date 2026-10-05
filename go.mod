@@ -1,7 +1,6 @@
 module github.com/wyzzgzhdcxy/wcj-go-common
 
-
-go 1.25.3
+go 1.27.1
 
 require (
 	github.com/dgraph-io/badger/v4 v4.8.0
